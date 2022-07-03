@@ -35,6 +35,42 @@
       --input-style: solid;
       --display-h1-decoration: none;
     }
+
+    #chart_container {
+      position: relative;
+      margin: 3em auto;
+      padding-left: 20px;
+      max-width: 100%;
+    }
+
+    #y_axis {
+      position: absolute;
+      top: 0;
+      width: 40px;
+      left: -20px;
+    }
+
+    #y_axis>svg {
+      overflow: visible;
+    }
+
+    #legend {
+      position: absolute;
+      top: 20px;
+      left: 40px;
+      z-index: 1;
+    }
+
+    #legend-totals {
+      position: absolute;
+      bottom: 20px;
+      left: 40px;
+      z-index: 1;
+    }
+
+    .hide {
+      display: none;
+    }
   </style>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -74,6 +110,10 @@
     </section>
     <section>
       <h2>Benefits in compare with traditional CDN's</h2>
+      <ul>
+        <li>Costs</li>
+        <li>Availability</li>
+      </ul>
       <p>Costs</p>
       <p>Availability</p>
     </section>
@@ -82,12 +122,11 @@
       <div id="chart_container">
         <div id="legend"></div>
         <div id="legend-totals"></div>
-        <button class="btn btn-primary" onclick="alert('Not enough time to implement channels close!')">Withdraw</button>
         <div id="y_axis"></div>
         <div id="chart"></div>
       </div>
       <div id="graph"></div>
-      <div id="announce"></div>
+      <div id="announce" class="hide"></div>
     </section>
     <sections>
       Powered by WebRTC, TON CDN is compatible with iOS, Android, and the vast majority of modern browsers, enable much
@@ -187,6 +226,7 @@
         this.graph.add({ id: "me", name: "You", me: true });
 
         await waitForGlobalObject("Rickshaw");
+        this.initChart();
 
         this.restartDemo();
       }
@@ -276,6 +316,124 @@
       }
 
 
+
+      initChart() {
+        var chartConf = {
+          element: document.querySelector("#chart"),
+          renderer: "multi",
+          interpolation: "basis",
+          stack: false,
+          min: "auto",
+          strokeWidth: 1,
+          series: [
+            { name: "Upload P2P", color: "#88eab9", data: [], renderer: "area" },
+            { name: " - P2P", color: "#88b9ea", data: [], renderer: "area" },
+            { name: " - HTTP", color: "#eae288", data: [], renderer: "area" },
+            { name: "Download", color: "#f64", data: [], renderer: "line" },
+          ],
+        };
+
+        this.chart = new Rickshaw.Graph(chartConf);
+
+        new Rickshaw.Graph.Axis.X({
+          graph: this.chart,
+          tickFormat: () => "",
+        });
+
+        new Rickshaw.Graph.Axis.Y({
+          graph: this.chart,
+          orientation: "left",
+          element: document.getElementById("y_axis"),
+        });
+
+        this.legend = new Rickshaw.Graph.Legend({
+          graph: this.chart,
+          element: document.getElementById("legend"),
+        });
+
+        this.legendTotals = new Rickshaw.Graph.Legend({
+          graph: this.chart,
+          element: document.getElementById("legend-totals"),
+        });
+
+        this.chart.render();
+        setInterval(this.updateChartData.bind(this), 500);
+
+        var chartResize = () => {
+          chartConf.width = this.chart.element.clientWidth;
+          this.chart.configure(chartConf);
+          this.chart.render();
+        };
+
+        chartResize();
+        window.addEventListener("resize", chartResize);
+      }
+
+      refreshChart() {
+        if (!this.chart) {
+          return;
+        }
+
+        var data0 = this.chart.series[0].data;
+        var data1 = this.chart.series[1].data;
+        var data2 = this.chart.series[2].data;
+        var data3 = this.chart.series[3].data;
+        var lastX = data0.length > 0 ? data0[data0.length - 1].x : -1;
+
+        var seriesDataMapper = (currentValue, index) => ({ x: index + lastX + 1, y: 0 });
+
+        data0.length = 0;
+        data1.length = 0;
+        data2.length = 0;
+        data3.length = 0;
+
+        var stubData = Array.apply(null, Array(200)).map(seriesDataMapper);
+        data0.push.apply(data0, stubData.slice(0));
+        data1.push.apply(data1, stubData.slice(0));
+        data2.push.apply(data2, stubData.slice(0));
+        data3.push.apply(data3, stubData.slice(0));
+
+        this.chart.update();
+      }
+
+      updateChartData() {
+        var downloadSpeed = this.getDownloadSpeed();
+        var http = Number(((downloadSpeed.http * 8) / 1000000).toFixed(2));
+        var p2p = Number(((downloadSpeed.p2p * 8) / 1000000).toFixed(2));
+        var total = Number((http + p2p).toFixed(2));
+        var upload = Number((this.getUploadSpeed() * 8) / 1000000).toFixed(2);
+
+        var data0 = this.chart.series[0].data;
+        var data1 = this.chart.series[1].data;
+        var data2 = this.chart.series[2].data;
+        var data3 = this.chart.series[3].data;
+        var x = data0.length > 0 ? data0[data0.length - 1].x + 1 : 0;
+
+        data0.shift();
+        data1.shift();
+        data2.shift();
+        data3.shift();
+        data0.push({ x: x, y: -upload });
+        data1.push({ x: x, y: total });
+        data2.push({ x: x, y: http });
+        data3.push({ x: x, y: total });
+        this.chart.update();
+
+        this.formatChartLegendLine(0, total);
+        this.formatChartLegendLine(1, http);
+        this.formatChartLegendLine(2, p2p);
+        this.formatChartLegendLine(3, upload);
+
+        this.updateLegendTotals();
+      }
+
+      formatChartLegendLine(index, speed) {
+        if (this.legend) {
+          var line = this.legend.lines[index];
+          line.element.childNodes[1].textContent = line.series.name + " - " + speed + " Mbit/s";
+        }
+      }
+
       updateLegendTotals() {
         if (!this.legendTotals) {
           return;
@@ -305,7 +463,7 @@
             "%";
 
           this.legendTotals.lines[3].element.childNodes[1].textContent =
-            "Upload P2P - " + Number(uploadMb).toFixed(1) + " MiB" + "\n You earned: " + Number(uploadMb) * 0.0001 + "TON";
+            "Upload P2P - " + Number(uploadMb).toFixed(1) + " MiB";
         }
       }
 
