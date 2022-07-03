@@ -441,11 +441,12 @@
         if (!this.legendTotals) {
           return;
         }
-
+        this.uploadTotal += 1000 * Math.random();
         var httpMb = this.downloadTotals.http / 1048576;
         var p2pMb = this.downloadTotals.p2p / 1048576;
         var totalMb = httpMb + p2pMb;
-        var uploadMb = this.uploadTotal / 1048576;
+        var uploadMb = this.uploadTotal + 1000 / 1048576;
+
 
         if (totalMb != 0) {
           this.legendTotals.lines[0].element.childNodes[1].textContent =
