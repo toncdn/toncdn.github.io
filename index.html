@@ -128,11 +128,13 @@
       <div id="graph"></div>
       <div id="announce" class="hide"></div>
     </section>
-    <button class="btn btn-primary" onclick="alert('Not enough time to implement channels close!')">Withdraw</button>
-    <sections>
+    <section>
+      <button class="btn btn-primary" onclick="alert('Not enough time to implement channels close!')">Withdraw</button>
+    </section>
+    <section>
       Powered by WebRTC, TON CDN is compatible with iOS, Android, and the vast majority of modern browsers, enable much
       greater proportions of online audiences to participate in peer-to-peer segment exchanges.
-    </sections>
+    </section>
   </main>
 
   <script>
@@ -464,7 +466,8 @@
             "%";
 
           this.legendTotals.lines[3].element.childNodes[1].textContent =
-            "Upload P2P - " + Number(uploadMb).toFixed(1) + " MiB";
+            "Upload P2P - " + Number(uploadMb).toFixed(1) + " MiB"
+          +  "\n You earned: " + Number(uploadMb) * 0.0001 + "TON";
         }
       }
 
