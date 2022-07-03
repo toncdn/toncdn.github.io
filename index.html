@@ -1,0 +1,549 @@
+<!doctype html>
+<html>
+
+<head>
+  <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.2/dist/terminal.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.1/dist/terminal.min.css" />
+  <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.1/dist/terminal.min.css" />
+  <style>
+    #video {
+      width: 100%;
+      height: 500px;
+    }
+
+    :root {
+      --global-font-size: 15px;
+      --global-line-height: 1.4em;
+      --global-space: 10px;
+      --font-stack: Menlo, Monaco, Lucida Console, Liberation Mono,
+        DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace,
+        serif;
+      --mono-font-stack: Menlo, Monaco, Lucida Console, Liberation Mono,
+        DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace,
+        serif;
+      --background-color: #222225;
+      --page-width: 60em;
+      --font-color: #e8e9ed;
+      --invert-font-color: #222225;
+      --secondary-color: #a3abba;
+      --tertiary-color: #a3abba;
+      --primary-color: #62c4ff;
+      --error-color: #ff3c74;
+      --progress-bar-background: #3f3f44;
+      --progress-bar-fill: #62c4ff;
+      --code-bg-color: #3f3f44;
+      --input-style: solid;
+      --display-h1-decoration: none;
+    }
+  </style>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script async src="p2p-media-loader-core.min.js"></script>
+  <script async src="p2p-graph.js"></script>
+  <script async src="https://cdnjs.cloudflare.com/ajax/libs/rickshaw/1.6.3/rickshaw.min.js"></script>
+
+  <script>
+    const URL_P2P_MEDIA_LOADER_SHAKA = "p2p-media-loader-shaka.min.js";
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+
+
+</head>
+
+<body class="terminal">
+  <main class="container">
+    <section class="terminal-nav">
+      <div class="terminal-logo">
+        <div class="logo terminal-prompt"><a href="#" class="no-style">TON CDN</a></div>
+      </div>
+    </section>
+    <section>
+      <p>Earn money while <b>watching / listening / reading</b> your favorite content</p>
+      <br />
+    </section>
+    <section>
+      <h2>How it works</h2>
+      <ol>
+        <li>create TON wallet</li>
+        <li>chose content</li>
+        <li>approve costs per KB of data</li>
+        <li>consume content and share it with others to receive TON's</li>
+      </ol>
+    </section>
+    <section>
+      <h2>Benefits in compare with traditional CDN's</h2>
+      <p>Costs</p>
+      <p>Availability</p>
+    </section>
+    <section>
+      <div id="video_container"></div>
+      <div id="chart_container">
+        <div id="legend"></div>
+        <div id="legend-totals"></div>
+        <div id="y_axis"></div>
+        <div id="chart"></div>
+      </div>
+      <div id="graph"></div>
+      <div id="announce"></div>
+    </section>
+    <sections>
+      Powered by WebRTC, TON CDN is compatible with iOS, Android, and the vast majority of modern browsers, enable much
+      greater proportions of online audiences to participate in peer-to-peer segment exchanges.
+    </sections>
+  </main>
+
+  <script>
+    function waitForGlobalObject(objectName, objectNextName) {
+      return new Promise((resolve) => {
+        function check() {
+          if (
+            window[objectName] !== undefined &&
+            (objectNextName === undefined || window[objectName][objectNextName] !== undefined)
+          ) {
+            resolve();
+          } else {
+            setTimeout(check, 200);
+          }
+        }
+
+        check();
+      });
+    }
+
+    function waitForModule(moduleName) {
+      return new Promise((resolve) => {
+        function check() {
+          try {
+            resolve(require(moduleName));
+          } catch (e) {
+            setTimeout(check, 200);
+          }
+        }
+
+        check();
+      });
+    }
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.type = "text/javascript";
+        script.onload = () => {
+          resolve();
+        };
+        script.onerror = () => {
+          console.log("Failed to load script", src);
+          reject();
+        };
+        script.src = src;
+        document.head.appendChild(script);
+      });
+    }
+
+    function loadStyle(src) {
+      return new Promise((resolve, reject) => {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.type = "text/css";
+        link.onload = () => {
+          resolve();
+        };
+        link.onerror = () => {
+          console.log("Failed to load CSS", src);
+          reject();
+        };
+        link.href = src;
+        document.head.appendChild(link);
+      });
+    }
+
+    class DemoApp {
+      async init() {
+        await waitForGlobalObject("p2pml", "core");
+
+        this.isP2PSupported = p2pml.core.HybridLoader.isSupported();
+        if (!this.isP2PSupported) {
+          document.querySelector("#error-webrtc-data-channels").classList.remove("hide");
+        }
+
+        if (location.protocol == "https:") {
+          document.querySelector("#https-only").classList.remove("hide");
+        }
+
+        this.liveSyncDurationCount = 7;
+
+
+        this.videoUrl = "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8";
+        this.playerType = "hlsjs";
+        this.videoContainer = document.getElementById("video_container");
+
+        this.loadSpeedTimespan = 10; // seconds
+
+        const P2PGraphClass = await waitForModule("p2p-graph");
+        this.graph = new P2PGraphClass("#graph");
+        this.graph.add({ id: "me", name: "You", me: true });
+
+        await waitForGlobalObject("Rickshaw");
+
+        this.restartDemo();
+      }
+
+
+
+      async restartDemo() {
+        this.downloadStats = [];
+        this.downloadTotals = { http: 0, p2p: 0 };
+        this.uploadStats = [];
+        this.uploadTotal = 0;
+
+        while (this.videoContainer.hasChildNodes()) {
+          this.videoContainer.removeChild(this.videoContainer.lastChild);
+        }
+
+        const config = {
+          segments: {
+            swarmId: this.swarmId,
+          },
+          loader: {
+            simultaneousHttpDownloads: 2,
+            consumeOnly: false
+          },
+        };
+
+        if (this.trackers) {
+          config.loader.trackerAnnounce = this.trackers;
+        }
+
+        await Promise.all([
+          loadScript("https://github.com/videojs/mux.js/releases/download/v5.1.2/mux.js"),
+          loadScript(
+            "https://cdnjs.cloudflare.com/ajax/libs/shaka-player/2.5.1/shaka-player.compiled.js"
+          ),
+        ]);
+
+        shaka.polyfill.installAll();
+        if (!shaka.Player.isBrowserSupported()) {
+          document.querySelector("#error-shakaplayer").classList.remove("hide");
+        }
+
+        await loadScript(URL_P2P_MEDIA_LOADER_SHAKA);
+        this.engine = this.isP2PSupported ? new p2pml.shaka.Engine(config) : undefined;
+
+        this.initPlayer();
+
+        if (this.isP2PSupported) {
+          this.engine.on(p2pml.core.Events.PieceBytesDownloaded, this.onBytesDownloaded.bind(this));
+          this.engine.on(p2pml.core.Events.PieceBytesUploaded, this.onBytesUploaded.bind(this));
+
+          var trackerAnnounce = this.engine.getSettings().loader.trackerAnnounce;
+          if (Array.isArray(trackerAnnounce)) {
+            document.getElementById("announce").innerHTML = trackerAnnounce.join("<br />");
+          }
+        }
+
+        this.refreshChart();
+        this.refreshGraph();
+      }
+
+      async initPlayer() {
+        if (!shaka.Player.isBrowserSupported()) {
+          return;
+        }
+
+        var video = document.createElement("video");
+        video.id = "video";
+        video.volume = 0;
+        video.setAttribute("playsinline", "");
+        video.setAttribute("muted", "");
+        video.setAttribute("autoplay", "");
+        video.setAttribute("controls", "");
+        this.videoContainer.appendChild(video);
+
+        var level = document.createElement("select");
+        level.id = "level";
+        level.classList.add("form-control");
+        this.videoContainer.appendChild(level);
+
+        var player = new shaka.Player(video);
+        if (this.isP2PSupported) {
+          this.engine.initShakaPlayer(player);
+        }
+        this.shakaLevelSwitcher.init(player, level);
+        player.load(this.videoUrl);
+      }
+
+
+      updateLegendTotals() {
+        if (!this.legendTotals) {
+          return;
+        }
+
+        var httpMb = this.downloadTotals.http / 1048576;
+        var p2pMb = this.downloadTotals.p2p / 1048576;
+        var totalMb = httpMb + p2pMb;
+        var uploadMb = this.uploadTotal / 1048576;
+
+        if (totalMb != 0) {
+          this.legendTotals.lines[0].element.childNodes[1].textContent =
+            "Download - " + Number(totalMb).toFixed(1) + " MiB";
+
+          this.legendTotals.lines[1].element.childNodes[1].textContent =
+            " - HTTP - " +
+            Number(httpMb).toFixed(1) +
+            " MiB - " +
+            Number((httpMb * 100) / totalMb).toFixed(0) +
+            "%";
+
+          this.legendTotals.lines[2].element.childNodes[1].textContent =
+            " - P2P - " +
+            Number(p2pMb).toFixed(1) +
+            " MiB - " +
+            Number((p2pMb * 100) / totalMb).toFixed(0) +
+            "%";
+
+          this.legendTotals.lines[3].element.childNodes[1].textContent =
+            "Upload P2P - " + Number(uploadMb).toFixed(1) + " MiB";
+        }
+      }
+
+      getDownloadSpeed() {
+        var startingPoint = performance.now() - this.loadSpeedTimespan * 1000;
+        var httpSize = 0;
+        var p2pSize = 0;
+
+        var i = this.downloadStats.length;
+        while (i--) {
+          var stat = this.downloadStats[i];
+          if (stat.timestamp < startingPoint) {
+            break;
+          }
+
+          if (stat.method === "p2p") {
+            p2pSize += stat.size;
+          } else if (stat.method === "http") {
+            httpSize += stat.size;
+          }
+        }
+
+        this.downloadStats.splice(0, i + 1);
+
+        return { p2p: p2pSize / this.loadSpeedTimespan, http: httpSize / this.loadSpeedTimespan };
+      }
+
+      getUploadSpeed() {
+        var startingPoint = performance.now() - this.loadSpeedTimespan * 1000;
+        var size = 0;
+
+        var i = this.uploadStats.length;
+        while (i--) {
+          var stat = this.uploadStats[i];
+          if (stat.timestamp < startingPoint) {
+            break;
+          }
+
+          size += stat.size;
+        }
+
+        this.uploadStats.splice(0, i + 1);
+
+        return size / this.loadSpeedTimespan;
+      }
+
+      onBytesDownloaded(method, size) {
+        this.downloadStats.push({ method: method, size: size, timestamp: performance.now() });
+        this.downloadTotals[method] += size;
+      }
+
+      onBytesUploaded(method, size) {
+        this.uploadStats.push({ size: size, timestamp: performance.now() });
+        this.uploadTotal += size;
+      }
+
+      refreshGraph(p2pLoader) {
+        if (!this.graph) {
+          return;
+        }
+
+        var nodes = this.graph.list();
+        for (var i = 0; i < nodes.length; i++) {
+          if (nodes[i].id !== "me") {
+            this.graph.disconnect("me", nodes[i].id);
+            this.graph.remove(nodes[i].id);
+          }
+        }
+
+        if (this.isP2PSupported) {
+          this.engine.on(p2pml.core.Events.PeerConnect, this.onPeerConnect.bind(this));
+          this.engine.on(p2pml.core.Events.PeerClose, this.onPeerClose.bind(this));
+        }
+      }
+
+      onPeerConnect(peer) {
+        if (!this.graph.hasPeer(peer.id)) {
+          this.graph.add({ id: peer.id, name: peer.remoteAddress || "Unknown" });
+          this.graph.connect("me", peer.id);
+        }
+      }
+
+      onPeerClose(id) {
+        if (this.graph.hasPeer(id)) {
+          this.graph.disconnect("me", id);
+          this.graph.remove(id);
+        }
+      }
+
+      constructor() {
+        this.hlsLevelSwitcher = {
+          auto: "Auto",
+          hls: undefined,
+          select: undefined,
+
+          init: function (hls, select) {
+            if (hls.levelController.levels.length < 2) {
+              select.style.display = "none";
+              return;
+            } else {
+              select.style.display = "block";
+            }
+
+            this.hls = hls;
+            this.select = select;
+
+            this._clearOptions();
+            this._addOption(this.auto);
+            hls.levelController.levels.forEach((e, i) => {
+              var name = [];
+              if (e.height) {
+                name.push(e.height + "p");
+              }
+              if (e.bitrate) {
+                name.push(Math.round(e.bitrate / 1000) + "k");
+              }
+              if (name.length === 0) {
+                name.push("Quality #" + i);
+              }
+              this._addOption(name.join(" / "), i);
+            });
+
+            hls.on(Hls.Events.LEVEL_SWITCHED, this._hlsLevelSwitch.bind(this));
+
+            this.select.addEventListener("change", (event) => {
+              hls.nextLevel = event.target.selectedIndex - 1;
+              this._hlsLevelSwitch();
+            });
+          },
+
+          _hlsLevelSwitch: function () {
+            var auto = this.select.querySelector("option:not([data-index])");
+            var curr = this.select.querySelector(
+              "option[data-index='" + this.hls.currentLevel + "']"
+            );
+            if (this.hls.autoLevelEnabled || this.hls.currentLevel === -1) {
+              auto.selected = true;
+              auto.text = curr ? curr.text + " (" + this.auto + ")" : this.auto;
+            } else {
+              curr.selected = true;
+              auto.text = this.auto;
+            }
+          },
+
+          _clearOptions: function () {
+            while (this.select.options.length) {
+              this.select.remove(0);
+            }
+          },
+
+          _addOption: function (text, index) {
+            var option = document.createElement("option");
+            option.text = text;
+            if (index !== undefined) {
+              option.dataset.index = index;
+            }
+            this.select.add(option);
+          },
+        };
+
+        this.shakaLevelSwitcher = {
+          auto: "Auto",
+          player: undefined,
+          select: undefined,
+
+          init: function (player, select) {
+            this.player = player;
+            this.select = select;
+
+            player.addEventListener("trackschanged", () => {
+              this._clearOptions();
+              this._addOption(this.auto);
+              this.player.getVariantTracks().forEach((e, i) => {
+                var name = [];
+
+                if (e.height) {
+                  name.push(e.height + "p");
+                }
+
+                if (e.bandwidth) {
+                  name.push(Math.round(e.bandwidth / 1000) + "k");
+                }
+
+                if (e.label) {
+                  name.push(e.label);
+                } else if (e.language) {
+                  name.push(e.language);
+                }
+
+                if (name.length === 0) {
+                  name.push("Variant #" + i);
+                }
+
+                this._addOption(name.join(" / "), e.id);
+              });
+            });
+
+            player.addEventListener("adaptation", () => {
+              var variantId = this.player.getVariantTracks().find((i) => i.active === true).id;
+              var curr = this.select.querySelector("option[data-variant-id='" + variantId + "']");
+              var auto = this.select.querySelector("option:not([data-variant-id])");
+              auto.text = curr ? curr.text + " (" + this.auto + ")" : this.auto;
+            });
+
+            select.addEventListener("change", () => {
+              var variantId = this.select.selectedOptions[0].dataset.variantId;
+              if (variantId) {
+                var variant = this.player.getVariantTracks().find((i) => i.id == variantId);
+                this.player.configure({ abr: { enabled: false } });
+                this.player.selectVariantTrack(variant);
+                var auto = this.select.querySelector("option:not([data-variant-id])");
+                auto.text = this.auto;
+              } else {
+                this.player.configure({ abr: { enabled: true } });
+              }
+            });
+          },
+
+          _clearOptions: function () {
+            while (this.select.options.length) {
+              this.select.remove(0);
+            }
+          },
+
+          _addOption: function (text, variantId) {
+            var option = document.createElement("option");
+            option.text = text;
+            if (variantId) {
+              option.dataset.variantId = variantId;
+            }
+            this.select.add(option);
+          },
+        };
+      }
+    }
+
+    window.demo = new DemoApp();
+    window.demo.init();
+  </script>
+</body>
+
+</html>
