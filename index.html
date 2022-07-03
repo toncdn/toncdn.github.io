@@ -126,7 +126,7 @@
         <div id="chart"></div>
       </div>
       <div>
-        <button class="btn btn-primary" onclick="alert('Not enough time to implement channels close!')">Withdraw To TON Wallet</button>
+        <button id="withdraw_btn" class="btn btn-primary" onclick="alert('Not enough time to implement channels close!')">Withdraw To TON Wallet</button>
       </div>
       <div id="graph"></div>
       <div id="announce" class="hide"></div>
@@ -469,6 +469,7 @@
           this.legendTotals.lines[3].element.childNodes[1].textContent =
             "Upload P2P - " + Number(uploadMb).toFixed(1) + " MiB"
           +  "\n You earned: " + Number(uploadMb) * 0.0000001 + "TON";
+          document.getElementById("withdraw_btn").innerHTML = "Withdraw " + Number(uploadMb) * 0.0000001 + "TON";
         }
       }
 
