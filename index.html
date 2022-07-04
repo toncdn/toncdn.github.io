@@ -109,16 +109,16 @@
       </ol>
     </section>
     <section>
-      <h2>Benefits in compare with traditional CDN's</h2>
+      <h2>Benefits over traditional CDN's</h2>
       <ul>
         <li>Costs</li>
         <li>Availability</li>
+        <li>Speed</li>
       </ul>
-      <p>Costs</p>
-      <p>Availability</p>
     </section>
     <section>
       <div id="video_container"></div>
+      <a href="#" target="_blank" class="btn btn-primary">Emulate client</a>
       <div id="chart_container">
         <div id="legend"></div>
         <div id="legend-totals"></div>
@@ -126,7 +126,8 @@
         <div id="chart"></div>
       </div>
       <div>
-        <button id="withdraw_btn" class="btn btn-primary" onclick="alert('Not enough time to implement channels close!')">Withdraw To TON Wallet</button>
+        <button id="withdraw_btn" class="btn btn-primary"
+          onclick="alert('Not enough time to implement channels close!')">Withdraw To TON Wallet</button>
       </div>
       <div id="graph"></div>
       <div id="announce" class="hide"></div>
@@ -303,7 +304,7 @@
 
         var level = document.createElement("select");
         level.id = "level";
-        level.classList.add("form-control");
+        level.classList.add("form-control", "hide");
         this.videoContainer.appendChild(level);
 
         var player = new shaka.Player(video);
@@ -464,8 +465,8 @@
 
           this.legendTotals.lines[3].element.childNodes[1].textContent =
             "Upload P2P - " + Number(uploadMb).toFixed(1) + " MiB"
-          +  "\n You earned: " + Number(uploadMb) * 0.0000001 + "TON";
-          document.getElementById("withdraw_btn").innerHTML = "Withdraw " + Number(uploadMb) * 0.0000001 + "TON";
+            + "\n You earned: " + (Number(uploadMb) * 0.0000001).toFixed(9) + " TON";
+          document.getElementById("withdraw_btn").innerHTML = "Withdraw " + (Number(uploadMb) * 0.0000001).toFixed(9) + " TON";
         }
       }
 
