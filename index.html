@@ -251,6 +251,29 @@
         this.initChart();
 
         this.restartDemo();
+
+        (async () => {
+          {
+            const peerID = Math.random().toString();
+            this.graph.add({ id: peerID, name: "LeechA" });
+            this.graph.connect("me", peerID);
+          }
+          {
+            const peerID = Math.random().toString();
+            this.graph.add({ id: peerID, name: "LeechB" });
+            this.graph.connect("me", peerID);
+          }
+          {
+            const peerID = Math.random().toString();
+            this.graph.add({ id: peerID, name: "LeechC" });
+            this.graph.connect("me", peerID);
+          }
+          {
+            const peerID = Math.random().toString();
+            this.graph.add({ id: peerID, name: "LeechD" });
+            this.graph.connect("me", peerID);
+          }
+        })()
       }
 
 
