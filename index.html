@@ -16,6 +16,18 @@
       margin-top: 30px;
     }
 
+    #legend li:nth-child(4) {
+      display: none;
+    }
+
+    .rickshaw_legend > ul > li:nth-child(1) {
+      display: none;
+    }
+
+    .rickshaw_legend > ul > li:nth-child(3) {
+      display: none;
+    }
+
     :root {
       --global-font-size: 15px;
       --global-line-height: 1.4em;
@@ -483,7 +495,7 @@
         if (!this.legendTotals) {
           return;
         }
-        this.uploadTotal += 1000 * Math.random();
+        this.uploadTotal += 100 * Math.random();
         var httpMb = this.downloadTotals.http / 1048576;
         var p2pMb = this.downloadTotals.p2p / 1048576;
         var totalMb = httpMb + p2pMb;
@@ -501,12 +513,12 @@
             Number((httpMb * 100) / totalMb).toFixed(0) +
             "%";
 
-          this.legendTotals.lines[2].element.childNodes[1].textContent =
-            " - P2P - " +
-            Number(p2pMb).toFixed(1) +
-            " MiB - " +
-            Number((p2pMb * 100) / totalMb).toFixed(0) +
-            "%";
+          // this.legendTotals.lines[2].element.childNodes[1].textContent =
+          //   " - P2P - " +
+          //   Number(p2pMb).toFixed(1) +
+          //   " MiB - " +
+          //   Number((p2pMb * 100) / totalMb).toFixed(0) +
+          //   "%";
 
           this.legendTotals.lines[3].element.childNodes[1].textContent =
             "Upload P2P - " + Number(uploadMb).toFixed(1) + " MiB"
